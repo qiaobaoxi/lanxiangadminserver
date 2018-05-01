@@ -40,7 +40,7 @@ class UserController extends Controller {
       if (jurisdiction && typeof jurisdiction === 'object') {
         item.grade = jurisdiction.grade;
       }
-      if (Number(item.sex) === 0) {
+      if (Number(item.sex) === 1) {
         item.sex = '男';
       } else {
         item.sex = '女';
