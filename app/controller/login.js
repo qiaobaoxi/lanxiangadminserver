@@ -14,7 +14,7 @@ class LoginController extends Controller {
     }
     this.ctx.cookies.set('admin', '123456', {
       maxAge: 30 * 60 * 1000,
-      httpOnly: false, // 默认就是 true
+      httpOnly: true, // 默认就是 true
       encrypt: true, // 加密传输
     });
     this.success({

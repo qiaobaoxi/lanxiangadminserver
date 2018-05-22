@@ -27,7 +27,7 @@ class LoginController extends Controller {
     const result = await this.ctx.service.video.list();
     let item = result[0];
     for (item of result) {
-      console.log(item.grades)
+      console.log(item.grades);
       const grades = item.grades.split(',');
       let i = 0;
       const grades1 = [];

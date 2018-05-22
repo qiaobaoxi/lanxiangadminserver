@@ -1,50 +1,99 @@
 'use strict';
 
 const Controller = require('../core/base_controller');
-
+const crypto = require('crypto');
 class UserController extends Controller {
-  async wxLoginByCode() {
-    const { code = '' } = this.ctx.request.body;
-    if (!code) {
-      return this.fail({}, '请传入code');
-    }
-    const result = await this.ctx.curl('https://api.weixin.qq.com/sns/jscode2session?appid=' + this.config.wxApp.appid + '&secret=' + this.config.wxApp.secret + '&js_code=' + code + '&grant_type=authorization_code', {
-      dataType: 'json',
-    });
-    this.success(result);
-  }
   async addUserOrUpdate() {
-    const { userInfo = '' } = this.ctx.request.body;
-    const createTime = this.ctx.app.moment().format('YYYY-MM-DD HH:mm:ss');
-    if (!userInfo) {
-      return this.fail({}, '没有传送用户信息');
+    const { name = '', password = '', grade = 0, address = '',id=0 } = this.ctx.request.body;
+    const check = user(name, password, grade, address);
+    let  list = await this.ctx.service.user.list();
+    const isReapet = repeatName(list,name,id);
+    if(isReapet){
+      this.fail({}, isReapet);
+    }else if (!check) {
+      if(id>0){
+        //修改用户
+        let user = await this.ctx.service.user.getUserInfoById(id);
+        let passwordNum = isSamePassword(this.app,user,password);
+        if(passwordNum){
+          user.name=name;
+          user.grade=grade;
+          user.address=address;
+          this.ctx.service.user.update(user);
+          this.success();
+        }else{
+          this.fail({},'密码不对');
+        }
+      }else{
+        //添加用户
+        const secret = password;
+        let hash = this.app.crypto(secret);
+        await this.ctx.service.user.saveUserInfo(name, hash, grade, new Date(), address);
+        this.success();  
+      }
+    } else{
+      this.fail({}, check);
     }
-    const { nickName = '', gender = '', avatarUrl = '', openid = '' } = userInfo;
-    if (!nickName || gender === '' || !avatarUrl || !openid) {
-      return this.fail({}, '用户信息传送不全');
+  }
+  async login() {
+    let {name='',password=''} = this.ctx.request.body;
+    if(!name){
+      return this.fail({},'账号不能为空'); 
     }
-    const user = await this.ctx.service.user.getUserInfoByOpenId(openid);
-    if (!user) {
-      const saveResult = await this.ctx.service.user.saveUserInfo(nickName, avatarUrl, openid, gender, createTime);
-      return this.success(saveResult);
+    if(!password){
+      return this.fail({},'密码不能为空'); 
     }
-    const updateResult = await this.ctx.service.user.updateUserInfo(nickName, avatarUrl, openid, gender, user.id);
-    return this.success(updateResult);
+    let hash = this.app.crypto(password);
+    let user = await this.ctx.service.user.login(name,hash);
+    if(user){
+      let time=new Date().getTime();
+      let cookie={
+        name,
+        time
+      }
+      await this.app.redis.set(name, time);
+      this.ctx.cookies.set('login',JSON.stringify(cookie), {
+        maxAge: 30 * 60 * 1000,
+        httpOnly: false, // 默认就是 true
+        encrypt: true, // 加密传输
+      });
+      this.success({userId:user.id});
+    }else{
+      this.fail({},'密码或者账号出错');
+    } 
+  }
+  async modifyPassword(){
+    let {name,oldPassword,newPassword1,newPassword2} = this.ctx.request.body;
+    if(!name){
+      return this.fail({},'账号不能为空'); 
+    }
+    if(!oldPassword){
+      return this.fail({},'原始密码不能为空'); 
+    }
+    if(!newPassword1){
+      return this.fail({},'新密码不能为空'); 
+    }
+    if(!newPassword2){
+      return this.fail({},'再次输入密码不能为空'); 
+    }
+    if(newPassword1!==newPassword2){
+      return this.fail({},'两次输入的密码不一致'); 
+    }
+    let hash=this.app.crypto(oldPassword);
+      let user = await this.ctx.service.user.login(name,hash);
+      if(user){
+        let hash=this.app.crypto(newPassword1);
+        user.password=hash;
+        await this.ctx.service.user.update(user);
+        this.success();
+      }else{
+        this.fail({},'密码或者账号出错');
+      }
   }
   async list() {
     const list = await this.ctx.service.user.list();
-    let item = '';
-    for (item of list) {
-      item.createTime = this.ctx.app.moment(item.createTime).format('YYYY-MM-DD HH:mm');
-      const jurisdiction = await this.ctx.service.jurisdiction.getById(item.jurisdictionId);
-      if (jurisdiction && typeof jurisdiction === 'object') {
-        item.grade = jurisdiction.grade;
-      }
-      if (Number(item.sex) === 1) {
-        item.sex = '男';
-      } else {
-        item.sex = '女';
-      }
+    for (const item of list) {
+      item.createTime = this.app.moment(item.createTime).format('YYYY-MM-DD HH:mm');
     }
     this.success(list);
   }
@@ -74,13 +123,40 @@ class UserController extends Controller {
     if (!user) {
       return this.fail({}, '用户不存在');
     }
-    if (Number(user.sex) === 0) {
-      user.sex = '男';
-    } else {
-      user.sex = '女';
-    }
+    user.password='';
     this.success(user);
   }
 }
 
+function repeatName(arr,name,id){
+  let isRepeat=arr.some((item)=>{
+    return  item.name===name&&item.id!==id;
+  })
+  let info=''
+  if(isRepeat){
+    info='账号已重复'
+  }
+  return info
+}
+function user(name = '', password = '', grade = 0, address = '') {
+  let info = '';
+  if (!name) {
+    info = '姓名不能为空';
+  } else if (!password) {
+    info = '密码不能为空';
+  } else if (!grade) {
+    info = '请选择等级';
+  } else if (!address) {
+    info = '地址不能为空';
+  }
+  return info;
+}
+function isSamePassword(app,user,password){
+  let hash = app.crypto(password);
+  let result=0;
+  if(hash===user.password){
+    result=1;
+  }
+  return  result;
+}
 module.exports = UserController;

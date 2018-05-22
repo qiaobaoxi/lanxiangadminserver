@@ -2,6 +2,14 @@
 
 module.exports = appInfo => {
   const config = exports = {
+    redis : {
+      client: {
+        port: 6379,          // Redis port
+        host: '127.0.0.1',   // Redis host
+        password: 'auth',
+        db: 0,
+      },
+    },
     user: {
       userName1: 'admin',
       password1: '123456',
@@ -15,20 +23,20 @@ module.exports = appInfo => {
       },
     },
     wxApp: {
-      appid: 'wx2ebb67beeaa3f579',
-      secret: 'd5b07e786c37cb574f7e5a227ca681ce',
+      appid: 'wx1a41365dfd8db183',
+      secret: '735495c8678fc2a2473406ea36cb2784',
     },
     mysql: {
       // 单数据库信息配置
       client: {
         // host
-        host: 'localhost',
+        host: '47.98.162.168',
         // 端口号
         port: '3306',
         // 用户名
         user: 'root',
         // 密码
-        password: '',
+        password: '123456',
         // 数据库名
         database: 'lanxiang',
       },
@@ -36,6 +44,15 @@ module.exports = appInfo => {
       app: true,
       // 是否加载到 agent 上，默认关闭
       agent: false,
+    },
+    io: {
+      init: { }, // passed to engine.io
+      namespace: {
+        '/index': {
+          connectionMiddleware: [ ],
+          packetMiddleware: [ ],
+        },
+      },
     },
   };
 

@@ -2,8 +2,8 @@
 const Service = require('egg').Service;
 
 class UserService extends Service {
-  async saveUserInfo(wxName, wxHead, openId, sex, createTime) {
-    const user = await this.app.mysql.insert('user', { wxName, wxHead, openId, sex, createTime });
+  async saveUserInfo(name, password, grade, createTime, address) {
+    const user = await this.app.mysql.insert('user', { name, password, grade, createTime, address });
     return user;
   }
   async getUserInfoByOpenId(openId) {
@@ -14,12 +14,16 @@ class UserService extends Service {
     const user = await this.app.mysql.get('user', { id });
     return user;
   }
-  async updateUserInfo(wxName, wxHead, openId, sex, id) {
+  async login(name,password) {
+    const user = await this.app.mysql.get('user', { name, password});
+    return user;
+  }
+  async updateUserInfo(id, wxName, wxHead, openId, sex) {
     const user = await this.app.mysql.update('user', { id, wxName, wxHead, openId, sex });
     return user;
   }
   async list() {
-    const list = await this.app.mysql.select('user');
+    const list = await this.app.mysql.select('user', { columns: [ 'id', 'name', 'grade', 'address', 'createTime' ] });
     return list;
   }
   async update(data) {

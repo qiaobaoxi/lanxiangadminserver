@@ -6,8 +6,12 @@
   "dependencies": {
     "egg": "^2.2.1",
     "egg-mysql": "^3.0.0",
+    "egg-redis": "^2.0.0",
     "egg-scripts": "^2.5.0",
-    "moment": "^2.22.1"
+    "egg-socket.io": "^4.0.8",
+    "egg-userrole": "^2.0.0",
+    "moment": "^2.22.1",
+    "socket.io-client": "^2.1.0"
   },
   "devDependencies": {
     "autod": "^3.0.1",
